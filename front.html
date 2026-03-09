@@ -92,7 +92,7 @@
     .toggle-link:hover { text-decoration: underline; }
     .search-results-info { text-align: center; color: #666; font-size: 14px; margin: 8px 0; display: none; }
     
-    
+    /* Стили для экрана входа */
     #login-screen {
       display: none;
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -123,14 +123,14 @@
 </head>
 <body>
 
-
+  <!-- Экран входа -->
   <div id="login-screen">
     <h1>Моя книжная полка</h1>
-    <p>Войдите через ВКонтакте, чтобы создать свой личный список книг и сохранять его в облаке.</p>
+    <p>Войдите через ВКонтакте, чтобы создать свой личный список книг.</p>
     <button onclick="loginWithVK()">Войти через VK</button>
   </div>
 
-
+  <!-- Основной контент -->
   <div id="app-container" style="display:none;">
     <div id="view">
       <div id="main" class="panel active">
@@ -185,14 +185,12 @@
     let books = [], editingBook = null, bookToDelete = null, currentRating = 0, currentFilter = '';
     let currentUserId = null; 
 
-   
     async function loginWithVK() {
       try {
         const data = await vkBridge.send('VKWebAppGetUserInfo');
         currentUserId = String(data.id);
-        console.log(' Вход выполнен. User ID:', currentUserId);
+        console.log('Вход выполнен. User ID:', currentUserId);
         
-    
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('app-container').style.display = 'block';
         
@@ -203,17 +201,16 @@
       }
     }
 
-    window.addEventListener('load', () => {
-      if (window.vkBridge && window.vkBridge.supports('VKWebAppGetUserInfo')) {
-        loginWithVK();
-      } else {
-        
-        document.getElementById('login-screen').innerHTML = '<h1>Ошибка</h1><p>Приложение работает только внутри ВКонтакте.</p>';
-        document.getElementById('login-screen').style.display = 'flex';
-      }
-    });
+   window.addEventListener('load', async () => {
+  
+  if (window.vkBridge && await vkBridge.supportsAsync('VKWebAppGetUserInfo')) {
+    loginWithVK();
+  } else {
+    document.getElementById('login-screen').innerHTML = '<h1>Ошибка</h1><p>Приложение работает только внутри ВКонтакте.</p>';
+    document.getElementById('login-screen').style.display = 'flex';
+  }
+});
 
-    
     function showPanel(id) {
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
       document.getElementById(id).classList.add('active');
@@ -363,16 +360,18 @@
       doVKShare(text, window.location.origin);
     }
     
-    function doVKShare(msg, link) {
-      const fullText = `${msg}\n\n${link}`;
-      if (window.vkBridge && window.vkBridge.supports && window.vkBridge.supports('VKWebAppShowWallPostBox')) {
-        vkBridge.send('VKWebAppShowWallPostBox', { message: fullText })
-          .then(() => showNotification('Пост опубликован!'))
-          .catch(() => fallbackShare(fullText)); 
-      } else {
-        fallbackShare(fullText);
-      }
-    }
+    async function doVKShare(msg, link) {
+  const fullText = `${msg}\n\n${link}`;
+  
+  
+  if (window.vkBridge && await vkBridge.supportsAsync('VKWebAppShowWallPostBox')) {
+    vkBridge.send('VKWebAppShowWallPostBox', { message: fullText })
+      .then(() => showNotification('Пост опубликован!'))
+      .catch(() => fallbackShare(fullText)); 
+  } else {
+    fallbackShare(fullText);
+  }
+}
 
     function fallbackShare(text) {
       if (navigator.clipboard) {
@@ -402,7 +401,7 @@
         description: desc, 
         rating: currentRating, 
         coverUrl: cover,
-        user_id: currentUserId //ID
+        user_id: currentUserId
       };
       
       const url = editingBook ? `/api/books/${editingBook.id}` : '/api/books',
