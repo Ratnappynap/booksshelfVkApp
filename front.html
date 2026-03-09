@@ -185,12 +185,14 @@
     let books = [], editingBook = null, bookToDelete = null, currentRating = 0, currentFilter = '';
     let currentUserId = null; 
 
+   
     async function loginWithVK() {
       try {
         const data = await vkBridge.send('VKWebAppGetUserInfo');
         currentUserId = String(data.id);
-        console.log('Вход выполнен. User ID:', currentUserId);
+        console.log(' Вход выполнен. User ID:', currentUserId);
         
+    
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('app-container').style.display = 'block';
         
@@ -201,16 +203,17 @@
       }
     }
 
-   window.addEventListener('load', async () => {
-  
-  if (window.vkBridge && await vkBridge.supportsAsync('VKWebAppGetUserInfo')) {
-    loginWithVK();
-  } else {
-    document.getElementById('login-screen').innerHTML = '<h1>Ошибка</h1><p>Приложение работает только внутри ВКонтакте.</p>';
-    document.getElementById('login-screen').style.display = 'flex';
-  }
-});
+    // Обновлена проверка на supportsAsync (исправлено предупреждение)
+    window.addEventListener('load', async () => {
+      if (window.vkBridge && await vkBridge.supportsAsync('VKWebAppGetUserInfo')) {
+        loginWithVK();
+      } else {
+        document.getElementById('login-screen').innerHTML = '<h1>Ошибка</h1><p>Приложение работает только внутри ВКонтакте.</p>';
+        document.getElementById('login-screen').style.display = 'flex';
+      }
+    });
 
+    
     function showPanel(id) {
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
       document.getElementById(id).classList.add('active');
@@ -354,24 +357,24 @@
       let text = `Моя книжная полка (${books.length} книг):\n\n`;
       books.forEach((b,i) => {
         const authorPart = b.author ? ` (${b.author})` : '';
-        text += `${i+1}. "${b.title}"${authorPart} — ⭐${b.rating}/5\n`;
+        text += `${i+1}. "${b.title}"${authorPart} — ★${b.rating}/5\n`;
       });
       text += `\nПосмотрите мой список: ${window.location.origin}`;
       doVKShare(text, window.location.origin);
     }
     
+    // Обновлена функция doVKShare на async/await
     async function doVKShare(msg, link) {
-  const fullText = `${msg}\n\n${link}`;
-  
-  
-  if (window.vkBridge && await vkBridge.supportsAsync('VKWebAppShowWallPostBox')) {
-    vkBridge.send('VKWebAppShowWallPostBox', { message: fullText })
-      .then(() => showNotification('Пост опубликован!'))
-      .catch(() => fallbackShare(fullText)); 
-  } else {
-    fallbackShare(fullText);
-  }
-}
+      const fullText = `${msg}\n\n${link}`;
+      
+      if (window.vkBridge && await vkBridge.supportsAsync('VKWebAppShowWallPostBox')) {
+        vkBridge.send('VKWebAppShowWallPostBox', { message: fullText })
+          .then(() => showNotification('Пост опубликован!'))
+          .catch(() => fallbackShare(fullText)); 
+      } else {
+        fallbackShare(fullText);
+      }
+    }
 
     function fallbackShare(text) {
       if (navigator.clipboard) {
@@ -401,7 +404,7 @@
         description: desc, 
         rating: currentRating, 
         coverUrl: cover,
-        user_id: currentUserId
+        user_id: currentUserId //ID
       };
       
       const url = editingBook ? `/api/books/${editingBook.id}` : '/api/books',
