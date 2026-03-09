@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Книжная полка</title>
-
+  
   <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
   <style>
     :root {
@@ -91,6 +91,23 @@
     .toggle-link { color: var(--primary-dark); text-decoration: none; margin-left: 4px; }
     .toggle-link:hover { text-decoration: underline; }
     .search-results-info { text-align: center; color: #666; font-size: 14px; margin: 8px 0; display: none; }
+    
+    
+    #login-screen {
+      display: none;
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: var(--bg); z-index: 2000;
+      flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; padding: 20px;
+    }
+    #login-screen h1 { color: var(--primary-dark); margin-bottom: 10px; }
+    #login-screen p { color: #666; margin-bottom: 30px; max-width: 400px; }
+    #login-screen button {
+      background: #0077FF; font-size: 18px; padding: 14px 28px;
+      box-shadow: 0 4px 12px rgba(0,119,255,0.3);
+    }
+    #login-screen button:hover { background: #0066DD; }
+
     @media (max-width: 360px) {
       .book-cover { width: 100%; max-width: 200px; height: 280px; }
       .book-title { font-size: 16px; }
@@ -105,53 +122,98 @@
   </style>
 </head>
 <body>
-  <div id="view">
-    <div id="main" class="panel active">
-      <h2>Моя книжная полка</h2>
-      <div style="text-align:center; margin:10px 0;">
-        <button onclick="showPanel('form'); editingBook = null;" style="font-size: 20px;">+ Добавить</button>
-        <button onclick="showPanel('search');" style="font-size: 20px;">Поиск</button>
-        <button class="share-btn" onclick="shareBookList();" style="font-size: 20px;">Поделиться списком</button>
+
+
+  <div id="login-screen">
+    <h1>Моя книжная полка</h1>
+    <p>Войдите через ВКонтакте, чтобы создать свой личный список книг и сохранять его в облаке.</p>
+    <button onclick="loginWithVK()">Войти через VK</button>
+  </div>
+
+
+  <div id="app-container" style="display:none;">
+    <div id="view">
+      <div id="main" class="panel active">
+        <h2>Моя книжная полка</h2>
+        <div style="text-align:center; margin:10px 0;">
+          <button onclick="showPanel('form'); editingBook = null;" style="font-size: 20px;">+ Добавить</button>
+          <button onclick="showPanel('search');" style="font-size: 20px;">Поиск</button>
+          <button class="share-btn" onclick="shareBookList();" style="font-size: 20px;">Поделиться списком</button>
+        </div>
+        <div id="search-results-info" class="search-results-info"></div>
+        <div id="book-list"></div>
       </div>
-      <div id="search-results-info" class="search-results-info"></div>
-      <div id="book-list"></div>
-    </div>
-    <div id="search" class="panel"> 
-      <h2>Поиск</h2>
-      <input type="text" id="search-query" placeholder="Название книги или автор" maxlength="30" />
-      <div style="text-align:center; margin:10px 0;">
-        <button onclick="findBook()">Найти</button>
+      
+      <div id="search" class="panel"> 
+        <h2>Поиск</h2>
+        <input type="text" id="search-query" placeholder="Название книги или автор" maxlength="30" />
+        <div style="text-align:center; margin:10px 0;">
+          <button onclick="findBook()">Найти</button>
+          <button class="secondary" onclick="showPanel('main')">Отмена</button>
+        </div>
+      </div>
+
+      <div id="form" class="panel">
+        <h2 id="form-title">Создать книгу</h2>
+        <input type="text" id="book-title" placeholder="Название книги (до 30 символов)" maxlength="30" />
+        <input type="text" id="book-author" placeholder="Автор книги"/>
+        <textarea id="book-description" placeholder="Описание книги" rows="4"></textarea>
+        <div>Оценка:</div>
+        <div class="rating-selector" id="rating-stars">
+          <span data-value="1">★</span><span data-value="2">★</span><span data-value="3">★</span>
+          <span data-value="4">★</span><span data-value="5">★</span>
+        </div>
+        <input type="url" id="book-cover" placeholder="Ссылка на обложку (необязательно)" />
+        <br>
+        <button onclick="saveBook()">Сохранить</button>
+        <button class="secondary" onclick="showPanel('main')">Отмена</button>
+      </div>
+
+      <div id="confirm-delete" class="panel">
+        <p>Вы уверены, что хотите удалить книгу?</p>
+        <button onclick="deleteBookConfirmed()">Да</button>
         <button class="secondary" onclick="showPanel('main')">Отмена</button>
       </div>
     </div>
-    <div id="form" class="panel">
-      <h2 id="form-title">Создать книгу</h2>
-      <input type="text" id="book-title" placeholder="Название книги (до 30 символов)" maxlength="30" />
-      <input type="text" id="book-author" placeholder="Автор книги"/>
-      <textarea id="book-description" placeholder="Описание книги" rows="4"></textarea>
-      <div>Оценка:</div>
-      <div class="rating-selector" id="rating-stars">
-        <span data-value="1">★</span><span data-value="2">★</span><span data-value="3">★</span>
-        <span data-value="4">★</span><span data-value="5">★</span>
-      </div>
-      <input type="url" id="book-cover" placeholder="Ссылка на обложку (необязательно)" />
-      <br>
-      <button onclick="saveBook()">Сохранить</button>
-      <button class="secondary" onclick="showPanel('main')">Отмена</button>
-    </div>
-    <div id="confirm-delete" class="panel">
-      <p>Вы уверены, что хотите удалить книгу?</p>
-      <button onclick="deleteBookConfirmed()">Да</button>
-      <button class="secondary" onclick="showPanel('main')">Отмена</button>
-    </div>
+    <div id="notification" class="notification"></div>
   </div>
-  <div id="notification" class="notification"></div>
 
   <script>
-    console.log('FRONTEND START');
+    // Инициализация
     if (window.vkBridge) vkBridge.send('VKWebAppInit');
-    let books = [], editingBook = null, bookToDelete = null, currentRating = 0, currentFilter = '';
 
+    let books = [], editingBook = null, bookToDelete = null, currentRating = 0, currentFilter = '';
+    let currentUserId = null; 
+
+   
+    async function loginWithVK() {
+      try {
+        const data = await vkBridge.send('VKWebAppGetUserInfo');
+        currentUserId = String(data.id);
+        console.log(' Вход выполнен. User ID:', currentUserId);
+        
+    
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('app-container').style.display = 'block';
+        
+        loadBooks();
+      } catch (err) {
+        console.error('Ошибка входа:', err);
+        alert('Не удалось войти через VK. Попробуйте еще раз.');
+      }
+    }
+
+    window.addEventListener('load', () => {
+      if (window.vkBridge && window.vkBridge.supports('VKWebAppGetUserInfo')) {
+        loginWithVK();
+      } else {
+        
+        document.getElementById('login-screen').innerHTML = '<h1>Ошибка</h1><p>Приложение работает только внутри ВКонтакте.</p>';
+        document.getElementById('login-screen').style.display = 'flex';
+      }
+    });
+
+    
     function showPanel(id) {
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
       document.getElementById(id).classList.add('active');
@@ -176,22 +238,16 @@
     }
     
     function loadBooks() {
-      console.log(' Запрос книг...');
-      fetch('/api/books')
-        .then(r => {
-          console.log('Статус ответа:', r.status);
-          return r.json();
-        })
-        .then(d => { 
-          console.log('Получено книг:', d.length);
-          if (d[0]) console.log(' Пример книги:', JSON.stringify(d[0]));
-          books = d; 
-          renderBookList(); 
-        })
-        .catch(err => {
-          console.error(' Ошибка загрузки:', err);
-          showNotification('Ошибка загрузки');
-        });
+      if (!currentUserId) return;
+      fetch('/api/books', {
+        headers: { 'X-User-ID': currentUserId }
+      })
+      .then(r => r.json())
+      .then(d => { 
+        books = d; 
+        renderBookList(); 
+      })
+      .catch(err => showNotification('Ошибка загрузки'));
     }
     
     function renderBookList(filter = '') {
@@ -311,11 +367,8 @@
       const fullText = `${msg}\n\n${link}`;
       if (window.vkBridge && window.vkBridge.supports && window.vkBridge.supports('VKWebAppShowWallPostBox')) {
         vkBridge.send('VKWebAppShowWallPostBox', { message: fullText })
-          .then(() => showNotification('Пост опубликован на стене!'))
-          .catch((err) => {
-            console.log('VK Share error:', err);
-            fallbackShare(fullText); 
-          });
+          .then(() => showNotification('Пост опубликован!'))
+          .catch(() => fallbackShare(fullText)); 
       } else {
         fallbackShare(fullText);
       }
@@ -323,22 +376,11 @@
 
     function fallbackShare(text) {
       if (navigator.clipboard) {
-        navigator.clipboard.writeText(text).then(() => {
-          showNotification('Текст скопирован! Вставьте его в пост VK вручную');
-        }).catch(() => {
-          showNotification('Не удалось скопировать');
-        });
+        navigator.clipboard.writeText(text).then(() => showNotification('Текст скопирован! Вставьте в VK')).catch(() => showNotification('Не удалось скопировать'));
       } else {
         const ta = document.createElement('textarea');
-        ta.value = text;
-        document.body.appendChild(ta);
-        ta.select();
-        try {
-          document.execCommand('copy');
-          showNotification('Текст скопирован!');
-        } catch {
-          showNotification('Ошибка копирования');
-        }
+        ta.value = text; document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); showNotification('Текст скопирован!'); } catch { showNotification('Ошибка копирования'); }
         document.body.removeChild(ta);
       }
     }
@@ -359,7 +401,8 @@
         author: author, 
         description: desc, 
         rating: currentRating, 
-        coverUrl: cover 
+        coverUrl: cover,
+        user_id: currentUserId //ID
       };
       
       const url = editingBook ? `/api/books/${editingBook.id}` : '/api/books',
@@ -369,11 +412,14 @@
       
       fetch(url, { 
         method, 
-        headers: {'Content-Type':'application/json'}, 
+        headers: {
+          'Content-Type':'application/json',
+          'X-User-ID': currentUserId
+        }, 
         body: JSON.stringify(bodyData) 
       })
       .then(r => {
-        if (!r.ok) return r.json().then(err => { throw new Error(err.details || err.error || 'Ошибка сервера ' + r.status); });
+        if (!r.ok) return r.json().then(err => { throw new Error(err.details || err.error || 'Ошибка сервера'); });
         return r.json();
       })
       .then(saved => {
@@ -384,41 +430,35 @@
           books.push(saved); 
         }
         showNotification(editingBook ? 'Книга обновлена!' : 'Книга сохранена!');
-        resetForm(); 
-        editingBook = null; 
-        showPanel('main'); 
-        renderBookList(currentFilter);
+        resetForm(); editingBook = null; showPanel('main'); renderBookList(currentFilter);
       })
-      .catch((error) => {
-        console.error('Ошибка сохранения:', error);
-        showNotification('Ошибка: ' + error.message);
-      });
+      .catch(err => showNotification('Ошибка сохранения: ' + err.message));
     }
     
     function deleteBookConfirmed() {
       if (bookToDelete === null) return;
-      fetch(`/api/books/${bookToDelete}`, { method: 'DELETE' })
-        .then(() => {
-          books = books.filter(b => b.id !== bookToDelete);
-          showNotification('Книга удалена'); 
-          bookToDelete = null; 
-          renderBookList(currentFilter); 
-          showPanel('main');
-        })
-        .catch(() => showNotification('Ошибка удаления'));
+      fetch(`/api/books/${bookToDelete}`, { 
+        method: 'DELETE',
+        headers: { 'X-User-ID': currentUserId }
+      })
+      .then(() => {
+        books = books.filter(b => b.id !== bookToDelete);
+        showNotification('Книга удалена'); 
+        bookToDelete = null; 
+        renderBookList(currentFilter); 
+        showPanel('main');
+      })
+      .catch(() => showNotification('Ошибка удаления'));
     }
     
     function findBook() {
       const q = document.getElementById('search-query').value.trim();
-      currentFilter = q; 
-      showPanel('main'); 
-      renderBookList(q);
+      currentFilter = q; showPanel('main'); renderBookList(q);
     }
     
     function showNotification(text) {
       const el = document.getElementById('notification');
-      el.innerText = text; 
-      el.style.display = 'block';
+      el.innerText = text; el.style.display = 'block';
       setTimeout(() => el.style.display = 'none', 2000);
     }
     
@@ -429,8 +469,6 @@
     document.getElementById('search-query')?.addEventListener('keypress', e => { 
       if (e.key === 'Enter') findBook(); 
     });
-    
-    loadBooks();
   </script>
 </body>
 </html>
