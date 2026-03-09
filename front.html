@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Книжная полка</title>
+
+  <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
+  <style>
+    :root {
+      --primary: #BB996C;
+      --primary-dark: #8d7352;
+      --bg: #FFF5E7;
+      --card-bg: #F7E3C9;
+      --text: #000;
+      --star-color: #ddbc00;
+      --star-empty: #cccccc;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 0;
+      line-height: 1.5;
+    }
+    .panel { display: none; padding: 12px; max-width: 700px; margin: 0 auto; }
+    .panel.active { display: block; }
+    h2 { font-size: 24px; text-align: center; margin: 10px 0; }
+    button {
+      margin: 6px 4px; padding: 10px 16px; border: none; border-radius: 6px;
+      background: var(--primary); color: white; cursor: pointer; font-size: 16px;
+      transition: background 0.2s;
+    }
+    button:hover { background: var(--primary-dark); }
+    button.secondary { background: var(--primary-dark); }
+    button.secondary:hover { background: #6d5532; }
+    button.share-btn { background: #BB996C; padding: 10px 16px; font-size: 16px; }
+    button.share-btn:hover { background: #6d5532; }
+    input, textarea {
+      width: 100%; padding: 10px; margin: 6px 0; border: 1px solid #ccc;
+      border-radius: 4px; box-sizing: border-box; font-size: 16px;
+    }
+    input:focus, textarea:focus { outline: none; border-color: var(--primary); }
+    .book-item {
+      background: var(--card-bg); padding: 12px; margin: 16px 0;
+      border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      position: relative; overflow: hidden; display: flex;
+      flex-direction: column; gap: 10px;
+    }
+    @media (min-width: 500px) { .book-item { flex-direction: row; align-items: flex-start; } }
+    .book-cover {
+      width: 100%; max-width: 240px; height: 340px; object-fit: cover;
+      border-radius: 4px; display: block; margin: 0 auto;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15); background: #eee;
+    }
+    @media (min-width: 500px) {
+      .book-cover { margin: 0 12px 0 0; width: 220px; height: 320px; }
+    }
+    .book-content { flex: 1; min-width: 0; }
+    .book-title { font-weight: bold; font-size: 18px; margin-bottom: 4px; word-break: break-word; }
+   
+    .book-author {
+      font-size: 14px;
+      color: #996949;  
+      margin-bottom: 8px;
+      font-style: italic;
+      font-weight: 500;
+      background: rgba(211, 84, 0, 0.1);
+      padding: 4px 8px;
+      border-radius: 4px;
+      display: block; 
+    }
+
+    .book-title, .book-item>div:not(.stars):not(.rating-selector),
+    #book-description, .book-item div[id$="_short"], .book-item div[id$="_full"] {
+      overflow-wrap: break-word; word-break: break-word; hyphens: auto; white-space: normal;
+    }
+    .stars { display: flex; flex-direction: row; gap: 4px; font-size: 32px; color: var(--star-empty); margin: 6px 0; }
+    .stars .selected { color: var(--star-color); }
+    .rating-selector { font-size: 32px; margin: 12px 0; user-select: none; display: flex; gap: 8px; justify-content: center; }
+    .rating-selector span { cursor: pointer; }
+    .book-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .notification {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: white; padding: 12px 20px; border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: none;
+      z-index: 1000; text-align: center; font-size: 16px; max-width: 90%;
+    }
+    .toggle-link { color: var(--primary-dark); text-decoration: none; margin-left: 4px; }
+    .toggle-link:hover { text-decoration: underline; }
+    .search-results-info { text-align: center; color: #666; font-size: 14px; margin: 8px 0; display: none; }
+    @media (max-width: 360px) {
+      .book-cover { width: 100%; max-width: 200px; height: 280px; }
+      .book-title { font-size: 16px; }
+      .stars, .rating-selector { font-size: 28px; }
+      button { padding: 8px 12px; font-size: 14px; }
+      h2 { font-size: 20px; }
+    }
+    @media (max-width: 400px) {
+      .panel { padding: 10px; }
+      .book-item { margin: 12px 0; padding: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="view">
+    <div id="main" class="panel active">
+      <h2>Моя книжная полка</h2>
+      <div style="text-align:center; margin:10px 0;">
+        <button onclick="showPanel('form'); editingBook = null;" style="font-size: 20px;">+ Добавить</button>
+        <button onclick="showPanel('search');" style="font-size: 20px;">Поиск</button>
+        <button class="share-btn" onclick="shareBookList();" style="font-size: 20px;">Поделиться списком</button>
+      </div>
+      <div id="search-results-info" class="search-results-info"></div>
+      <div id="book-list"></div>
+    </div>
+    <div id="search" class="panel"> 
+      <h2>Поиск</h2>
+      <input type="text" id="search-query" placeholder="Название книги или автор" maxlength="30" />
+      <div style="text-align:center; margin:10px 0;">
+        <button onclick="findBook()">Найти</button>
+        <button class="secondary" onclick="showPanel('main')">Отмена</button>
+      </div>
+    </div>
+    <div id="form" class="panel">
+      <h2 id="form-title">Создать книгу</h2>
+      <input type="text" id="book-title" placeholder="Название книги (до 30 символов)" maxlength="30" />
+      <input type="text" id="book-author" placeholder="Автор книги"/>
+      <textarea id="book-description" placeholder="Описание книги" rows="4"></textarea>
+      <div>Оценка:</div>
+      <div class="rating-selector" id="rating-stars">
+        <span data-value="1">★</span><span data-value="2">★</span><span data-value="3">★</span>
+        <span data-value="4">★</span><span data-value="5">★</span>
+      </div>
+      <input type="url" id="book-cover" placeholder="Ссылка на обложку (необязательно)" />
+      <br>
+      <button onclick="saveBook()">Сохранить</button>
+      <button class="secondary" onclick="showPanel('main')">Отмена</button>
+    </div>
+    <div id="confirm-delete" class="panel">
+      <p>Вы уверены, что хотите удалить книгу?</p>
+      <button onclick="deleteBookConfirmed()">Да</button>
+      <button class="secondary" onclick="showPanel('main')">Отмена</button>
+    </div>
+  </div>
+  <div id="notification" class="notification"></div>
+
+  <script>
+    console.log('FRONTEND START');
+    if (window.vkBridge) vkBridge.send('VKWebAppInit');
+    let books = [], editingBook = null, bookToDelete = null, currentRating = 0, currentFilter = '';
+
+    function showPanel(id) {
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      if (id === 'main') { 
+        currentFilter = ''; 
+        document.getElementById('search-results-info').style.display = 'none'; 
+        renderBookList(); 
+      }
+      if (id === 'form' && !editingBook) resetForm();
+      if (id === 'search') document.getElementById('search-query').value = '';
+    }
+    
+    function truncate(t, max) { 
+      if (!t) return ''; 
+      return t.length <= max ? t : t.substring(0, max) + '…'; 
+    }
+    
+    function renderStars(r) { 
+      let s = ''; 
+      for (let i = 1; i <= 5; i++) s += `<span class="${i<=r?'selected':''}">★</span>`; 
+      return `<div class="stars">${s}</div>`; 
+    }
+    
+    function loadBooks() {
+      console.log(' Запрос книг...');
+      fetch('/api/books')
+        .then(r => {
+          console.log('Статус ответа:', r.status);
+          return r.json();
+        })
+        .then(d => { 
+          console.log('Получено книг:', d.length);
+          if (d[0]) console.log(' Пример книги:', JSON.stringify(d[0]));
+          books = d; 
+          renderBookList(); 
+        })
+        .catch(err => {
+          console.error(' Ошибка загрузки:', err);
+          showNotification('Ошибка загрузки');
+        });
+    }
+    
+    function renderBookList(filter = '') {
+      const list = document.getElementById('book-list'), 
+            info = document.getElementById('search-results-info');
+      
+      list.innerHTML = '';
+      
+      const filtered = filter ? books.filter(b => 
+        b.title.toLowerCase().includes(filter.toLowerCase()) || 
+        (b.author && b.author.toLowerCase().includes(filter.toLowerCase()))
+      ) : books;
+      
+      if (filter) { 
+        info.innerText = filtered.length ? `Найдено: ${filtered.length} из ${books.length}` : 'Ничего не найдено'; 
+        info.style.display = 'block'; 
+      } else {
+        info.style.display = 'none';
+      }
+      
+      if (!filtered.length) { 
+        list.innerHTML = '<p style="text-align:center;color:#666">' + (filter ? 'По запросу ничего не найдено' : 'Список книг пуст') + '</p>'; 
+        return; 
+      }
+      
+      filtered.forEach(book => {
+        const descId = 'desc-' + book.id;
+        const div = document.createElement('div'); 
+        div.className = 'book-item';
+        
+        const cover = book.coverUrl
+          ? `<img src="${book.coverUrl}" class="book-cover" onerror="this.style.display='none'" alt="Обложка">`
+          : '<div class="book-cover" style="display:flex;align-items:center;justify-content:center;background:#e0d0c0;color:#666;font-size:13px;text-align:center;padding:10px">Нет обложки</div>';
+
+        const authorRaw = book.author;
+        const authorText = (authorRaw !== undefined && authorRaw !== null && typeof authorRaw === 'string' && authorRaw.trim()) 
+          ? authorRaw.trim() 
+          : '';
+        const authorDisplay = authorText 
+          ? truncate(authorText, 30) 
+          : '<span style="color:#999;font-style:normal">Автор не указан</span>';
+        const authorHtml = `<div class="book-author">${authorDisplay}</div>`;
+        
+        div.innerHTML = `${cover}<div class="book-content">
+          <div class="book-title">${truncate(book.title,30)}</div>
+          ${authorHtml}
+          ${renderStars(book.rating)}
+          <div id="${descId}_short" style="display:block">${truncate(book.description,100)} <a href="#" class="toggle-link" onclick="toggleDescription(${book.id});return false">Подробнее</a></div>
+          <div id="${descId}_full" style="display:none">${book.description} <a href="#" class="toggle-link" onclick="toggleDescription(${book.id});return false">Скрыть</a></div>
+          <div class="book-actions">
+            <button onclick="editBook(${book.id})">Редактировать</button>
+            <button class="secondary" onclick="askDeleteBook(${book.id})">Удалить</button>
+            <button class="share-btn" onclick="shareBook(${book.id})">Поделиться</button>
+          </div></div>`;
+        list.appendChild(div);
+      });
+    }
+    
+    function toggleDescription(id) {
+      const s = document.getElementById('desc-' + id + '_short'), 
+            f = document.getElementById('desc-' + id + '_full');
+      const vis = s.style.display !== 'none'; 
+      s.style.display = vis ? 'none' : 'block'; 
+      f.style.display = vis ? 'block' : 'none';
+    }
+    
+    function updateRatingDisplay(r) {
+      document.querySelectorAll('#rating-stars span').forEach((star, i) => 
+        star.style.color = (i+1 <= r) ? '#FFC436' : '#CCCCCC'
+      );
+      currentRating = r;
+    }
+    
+    function resetForm() {
+      document.getElementById('book-title').value = '';
+      document.getElementById('book-author').value = '';
+      document.getElementById('book-description').value = '';
+      document.getElementById('book-cover').value = '';
+      updateRatingDisplay(0);
+    }
+    
+    function editBook(id) {
+      const book = books.find(b => b.id === id); 
+      if (!book) return;
+      editingBook = book;
+      document.getElementById('form-title').innerText = 'Редактировать книгу';
+      document.getElementById('book-title').value = book.title;
+      document.getElementById('book-author').value = book.author || '';
+      document.getElementById('book-description').value = book.description;
+      document.getElementById('book-cover').value = book.coverUrl || '';
+      updateRatingDisplay(book.rating);
+      showPanel('form');
+    }
+    
+    function askDeleteBook(id) { bookToDelete = id; showPanel('confirm-delete'); }
+    
+    function shareBook(id) {
+      const book = books.find(b => b.id === id); 
+      if (!book) return;
+      const authorPart = book.author ? ` (автор: ${book.author})` : '';
+      const text = `Я читаю "${book.title}"${authorPart}\nМоя оценка: ${book.rating}/5\n${book.description.substring(0,100)}...`;
+      doVKShare(text, `${window.location.origin}/?book=${id}`);
+    }
+    
+    function shareBookList() {
+      if (!books.length) { showNotification('Список книг пуст'); return; }
+      let text = `Моя книжная полка (${books.length} книг):\n\n`;
+      books.forEach((b,i) => {
+        const authorPart = b.author ? ` (${b.author})` : '';
+        text += `${i+1}. "${b.title}"${authorPart} — ⭐${b.rating}/5\n`;
+      });
+      text += `\nПосмотрите мой список: ${window.location.origin}`;
+      doVKShare(text, window.location.origin);
+    }
+    
+    function doVKShare(msg, link) {
+      const fullText = `${msg}\n\n${link}`;
+      if (window.vkBridge && window.vkBridge.supports && window.vkBridge.supports('VKWebAppShowWallPostBox')) {
+        vkBridge.send('VKWebAppShowWallPostBox', { message: fullText })
+          .then(() => showNotification('Пост опубликован на стене!'))
+          .catch((err) => {
+            console.log('VK Share error:', err);
+            fallbackShare(fullText); 
+          });
+      } else {
+        fallbackShare(fullText);
+      }
+    }
+
+    function fallbackShare(text) {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(() => {
+          showNotification('Текст скопирован! Вставьте его в пост VK вручную');
+        }).catch(() => {
+          showNotification('Не удалось скопировать');
+        });
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand('copy');
+          showNotification('Текст скопирован!');
+        } catch {
+          showNotification('Ошибка копирования');
+        }
+        document.body.removeChild(ta);
+      }
+    }
+    
+    function saveBook() {
+      const title = document.getElementById('book-title').value.trim();
+      const author = document.getElementById('book-author').value.trim();  
+      const desc = document.getElementById('book-description').value.trim();
+      const cover = document.getElementById('book-cover').value.trim();
+      
+      if (!title || !desc || currentRating < 1) { 
+        showNotification('Заполните название, описание и выберите оценку!'); 
+        return; 
+      }
+      
+      const data = { 
+        title: title, 
+        author: author, 
+        description: desc, 
+        rating: currentRating, 
+        coverUrl: cover 
+      };
+      
+      const url = editingBook ? `/api/books/${editingBook.id}` : '/api/books',
+            method = editingBook ? 'PUT' : 'POST';
+      
+      const bodyData = editingBook ? {...data, id: editingBook.id} : data;
+      
+      fetch(url, { 
+        method, 
+        headers: {'Content-Type':'application/json'}, 
+        body: JSON.stringify(bodyData) 
+      })
+      .then(r => {
+        if (!r.ok) return r.json().then(err => { throw new Error(err.details || err.error || 'Ошибка сервера ' + r.status); });
+        return r.json();
+      })
+      .then(saved => {
+        if (editingBook) { 
+          const i = books.findIndex(b => b.id === saved.id); 
+          if (i >= 0) books[i] = saved; 
+        } else { 
+          books.push(saved); 
+        }
+        showNotification(editingBook ? 'Книга обновлена!' : 'Книга сохранена!');
+        resetForm(); 
+        editingBook = null; 
+        showPanel('main'); 
+        renderBookList(currentFilter);
+      })
+      .catch((error) => {
+        console.error('Ошибка сохранения:', error);
+        showNotification('Ошибка: ' + error.message);
+      });
+    }
+    
+    function deleteBookConfirmed() {
+      if (bookToDelete === null) return;
+      fetch(`/api/books/${bookToDelete}`, { method: 'DELETE' })
+        .then(() => {
+          books = books.filter(b => b.id !== bookToDelete);
+          showNotification('Книга удалена'); 
+          bookToDelete = null; 
+          renderBookList(currentFilter); 
+          showPanel('main');
+        })
+        .catch(() => showNotification('Ошибка удаления'));
+    }
+    
+    function findBook() {
+      const q = document.getElementById('search-query').value.trim();
+      currentFilter = q; 
+      showPanel('main'); 
+      renderBookList(q);
+    }
+    
+    function showNotification(text) {
+      const el = document.getElementById('notification');
+      el.innerText = text; 
+      el.style.display = 'block';
+      setTimeout(() => el.style.display = 'none', 2000);
+    }
+    
+    document.querySelectorAll('#rating-stars span').forEach(star => {
+      star.addEventListener('click', () => updateRatingDisplay(Number(star.dataset.value)));
+    });
+    
+    document.getElementById('search-query')?.addEventListener('keypress', e => { 
+      if (e.key === 'Enter') findBook(); 
+    });
+    
+    loadBooks();
+  </script>
+</body>
+</html>
