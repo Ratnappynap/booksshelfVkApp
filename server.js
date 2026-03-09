@@ -10,7 +10,7 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error('❌ ОШИБКА: Не найдены SUPABASE_URL или SUPABASE_KEY в .env');
+  console.error('ОШИБКА: Не найдены SUPABASE_URL или SUPABASE_KEY в .env');
   process.exit(1);
 }
 
@@ -18,6 +18,9 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(__dirname));
+
+//ID
+const getUserId = (req) => req.headers['x-user-id'];
 
 const normalizeBook = (book) => ({
   ...book,
@@ -29,26 +32,34 @@ app.post('/api/debug', (req, res) => {
   res.json({ received: req.body });
 });
 
+//GET 
 app.get('/api/books', async (req, res) => {
+  const userId = getUserId(req);
+  if (!userId) return res.status(401).json({ error: 'Требуется авторизация' });
+
   try {
     const { data, error } = await supabase
       .from('books')
       .select('*')
+      .eq('user_id', userId) 
       .order('id', { ascending: false });
 
     if (error) throw error;
 
     const books = data ? data.map(normalizeBook) : [];
-    console.log(`★ GET /api/books: отправляю ${books.length} книг`);
+    console.log(`★ GET /api/books (User ${userId}): отправляю ${books.length} книг`);
     res.json(books);
   } catch (err) {
-    console.error('❌ Ошибка чтения СУБЕЙС:', err.message);
+    console.error('Ошибка чтения СУБЕЙС:', err.message);
     res.status(500).json({ error: 'Ошибка базы данных', details: err.message });
   }
 });
 
+//POST 
 app.post('/api/books', async (req, res) => {
   console.log('★ POST body:', JSON.stringify(req.body));
+  const userId = getUserId(req);
+  if (!userId) return res.status(401).json({ error: 'Требуется авторизация' });
   
   const { title, author, description, rating, coverUrl } = req.body;
   
@@ -60,6 +71,7 @@ app.post('/api/books', async (req, res) => {
     const { data, error } = await supabase
       .from('books')
       .insert([{
+        user_id: userId, 
         title: String(title || '').trim(),
         author: String(author || '').trim(), 
         description: String(description || '').trim(),
@@ -70,21 +82,26 @@ app.post('/api/books', async (req, res) => {
       .single();
 
     if (error) {
-      // 🔥 ВАЖНО: Выводим полную ошибку от Supabase в консоль
-      console.error('❌ СУПЕР-ОШИБКА SUPABASE:', JSON.stringify(error, null, 2));
+      console.error('СУПЕР-ОШИБКА SUPABASE:', JSON.stringify(error, null, 2));
       throw error;
     }
 
     const newBook = normalizeBook(data);
-    console.log('✅ Книга добавлена:', newBook.title);
+    console.log('★ newBook.author запись:', newBook.author);
+    console.log('★ Отправляю клиенту newBook:', JSON.stringify(newBook));
+    
     res.status(201).json(newBook); 
   } catch (err) {
-    console.error('❌ Ошибка записи СУБЕЙС:', err.message);
+    console.error('Ошибка записи СУБЕЙС:', err.message);
     res.status(500).json({ error: 'Ошибка сохранения', details: err.message });
   }
 });
 
+//PUT 
 app.put('/api/books/:id', async (req, res) => {
+  const userId = getUserId(req);
+  if (!userId) return res.status(401).json({ error: 'Требуется авторизация' });
+
   const id = Number(req.params.id);
   const { title, author, description, rating, coverUrl } = req.body;
   
@@ -93,6 +110,12 @@ app.put('/api/books/:id', async (req, res) => {
   }
   
   try {
+   
+    const { data: existing } = await supabase.from('books').select('user_id').eq('id', id).single();
+    if (!existing || existing.user_id !== userId) {
+      return res.status(403).json({ error: 'Доступ запрещен: это не ваша книга' });
+    }
+
     const { data, error } = await supabase
       .from('books')
       .update({
@@ -107,27 +130,31 @@ app.put('/api/books/:id', async (req, res) => {
       .single();
 
     if (error) {
-      console.error('❌ СУПЕР-ОШИБКА SUPABASE (UPDATE):', JSON.stringify(error, null, 2));
+      console.error(' СУПЕР-ОШИБКА SUPABASE:', JSON.stringify(error, null, 2));
       throw error;
     }
     if (!data) return res.status(404).json({ error: 'Книга не найдена' });
 
     const updatedBook = normalizeBook(data);
-    console.log('✅ Книга обновлена:', updatedBook.title);
+    console.log('★ Обновляю книгу:', JSON.stringify(updatedBook, null, 2));
     res.json(updatedBook);
   } catch (err) {
-    console.error('❌ Ошибка обновления СУБЕЙС:', err.message);
+    console.error(' Ошибка обновления СУБЕЙС:', err.message);
     res.status(500).json({ error: 'Ошибка обновления', details: err.message });
   }
 });
 
+//DELETE
 app.delete('/api/books/:id', async (req, res) => {
+  const userId = getUserId(req);
+  if (!userId) return res.status(401).json({ error: 'Требуется авторизация' });
+
   const id = Number(req.params.id);
   
   try {
-    const { data: existing } = await supabase.from('books').select('id').eq('id', id).single();
-    if (!existing) {
-      return res.status(404).json({ error: 'Книга не найдена' });
+    const { data: existing } = await supabase.from('books').select('user_id').eq('id', id).single();
+    if (!existing || existing.user_id !== userId) {
+      return res.status(403).json({ error: 'Доступ запрещен: это не ваша книга' });
     }
 
     const { error } = await supabase
@@ -137,10 +164,10 @@ app.delete('/api/books/:id', async (req, res) => {
 
     if (error) throw error;
 
-    console.log(`✅ Книга ${id} удалена`);
+    console.log(`★ Книга ${id} удалена`);
     res.json({ status: 'deleted', id: id });
   } catch (err) {
-    console.error('❌ Ошибка удаления СУБЕЙС:', err.message);
+    console.error(' Ошибка удаления СУБЕЙС:', err.message);
     res.status(500).json({ error: 'Ошибка удаления', details: err.message });
   }
 });
