@@ -28,21 +28,56 @@
     .panel { display: none; padding: 12px; max-width: 700px; margin: 0 auto; }
     .panel.active { display: block; }
     h2 { font-size: 24px; text-align: center; margin: 10px 0; }
+    
+   
     button {
-      margin: 6px 4px; padding: 10px 16px; border: none; border-radius: 6px;
-      background: var(--primary); color: white; cursor: pointer; font-size: 16px;
+      margin: 6px 4px;
+      padding: 12px 20px; 
+      border: none;
+      border-radius: 6px;
+      background: var(--primary);
+      color: white;
+      cursor: pointer;
+      font-size: 16px;
       transition: background 0.2s;
+      min-width: 120px;
+      text-align: center;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 48px;
     }
     button:hover { background: var(--primary-dark); }
+    
     button.secondary { background: var(--primary-dark); }
     button.secondary:hover { background: #6d5532; }
-    button.share-btn { background: #BB996C; padding: 10px 16px; font-size: 16px; }
-    button.share-btn:hover { background: #6d5532; }
+    
+    button.share-btn { 
+      background: #4477aa; 
+      min-width: 140px;
+    }
+    button.share-btn:hover { background: #335588; }
+
+   
+    .book-actions button {
+      min-width: 90px;
+      height: 40px;
+      padding: 8px 12px;
+      font-size: 14px;
+      margin: 4px 2px;
+    }
+
     input, textarea {
-      width: 100%; padding: 10px; margin: 6px 0; border: 1px solid #ccc;
-      border-radius: 4px; box-sizing: border-box; font-size: 16px;
+      width: 100%;
+      padding: 12px;
+      margin: 6px 0;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      box-sizing: border-box;
+      font-size: 16px;
     }
     input:focus, textarea:focus { outline: none; border-color: var(--primary); }
+
     .book-item {
       background: var(--card-bg); padding: 12px; margin: 16px 0;
       border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);
@@ -105,14 +140,15 @@
     #login-screen button {
       background: #0077FF; font-size: 18px; padding: 14px 28px;
       box-shadow: 0 4px 12px rgba(0,119,255,0.3);
+      min-width: 200px;
     }
     #login-screen button:hover { background: #0066DD; }
 
     @media (max-width: 360px) {
-      .book-cover { width: 100%; max-width: 200px; height: 280px; }
+      .book-cover { max-width: 200px; height: 280px; }
       .book-title { font-size: 16px; }
       .stars, .rating-selector { font-size: 28px; }
-      button { padding: 8px 12px; font-size: 14px; }
+      button { padding: 10px 14px; font-size: 14px; min-width: 100px; height: 44px; }
       h2 { font-size: 20px; }
     }
     @media (max-width: 400px) {
@@ -136,9 +172,9 @@
       <div id="main" class="panel active">
         <h2>Моя книжная полка</h2>
         <div style="text-align:center; margin:10px 0;">
-          <button onclick="showPanel('form'); editingBook = null;" style="font-size: 20px;">+ Добавить</button>
-          <button onclick="showPanel('search');" style="font-size: 20px;">Поиск</button>
-          <button class="share-btn" onclick="shareBookList();" style="font-size: 20px;">Поделиться списком</button>
+          <button onclick="showPanel('form'); editingBook = null;">+ Добавить</button>
+          <button onclick="showPanel('search');">Поиск</button>
+          <button class="share-btn" onclick="shareBookList();">Поделиться списком</button>
         </div>
         <div id="search-results-info" class="search-results-info"></div>
         <div id="book-list"></div>
@@ -148,8 +184,9 @@
         <h2>Поиск</h2>
         <input type="text" id="search-query" placeholder="Название книги или автор" maxlength="30" />
         <div style="text-align:center; margin:10px 0;">
+          
           <button onclick="findBook()">Найти</button>
-          <button class="secondary" onclick="showPanel('main')">Отмена</button>
+          <button class="secondary" onclick="cancelSearch()">Отмена</button>
         </div>
       </div>
 
@@ -185,14 +222,12 @@
     let books = [], editingBook = null, bookToDelete = null, currentRating = 0, currentFilter = '';
     let currentUserId = null; 
 
-   
     async function loginWithVK() {
       try {
         const data = await vkBridge.send('VKWebAppGetUserInfo');
         currentUserId = String(data.id);
         console.log(' Вход выполнен. User ID:', currentUserId);
         
-    
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('app-container').style.display = 'block';
         
@@ -203,7 +238,6 @@
       }
     }
 
-    // Обновлена проверка на supportsAsync (исправлено предупреждение)
     window.addEventListener('load', async () => {
       if (window.vkBridge && await vkBridge.supportsAsync('VKWebAppGetUserInfo')) {
         loginWithVK();
@@ -213,7 +247,6 @@
       }
     });
 
-    
     function showPanel(id) {
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
       document.getElementById(id).classList.add('active');
@@ -224,6 +257,12 @@
       }
       if (id === 'form' && !editingBook) resetForm();
       if (id === 'search') document.getElementById('search-query').value = '';
+    }
+
+    // Новая функция для кнопки "Отмена" в поиске
+    function cancelSearch() {
+      document.getElementById('search-query').value = '';
+      showPanel('main');
     }
     
     function truncate(t, max) { 
@@ -344,26 +383,60 @@
     
     function askDeleteBook(id) { bookToDelete = id; showPanel('confirm-delete'); }
     
-    function shareBook(id) {
+       function shareBook(id) {
       const book = books.find(b => b.id === id); 
       if (!book) return;
-      const authorPart = book.author ? ` (автор: ${book.author})` : '';
-      const text = `Я читаю "${book.title}"${authorPart}\nМоя оценка: ${book.rating}/5\n${book.description.substring(0,100)}...`;
+
+      const authorLine = book.author ? `Автор: ${book.author}` : 'Автор не указан';
+      
+      let stars = '';
+      for (let i = 0; i < 5; i++) {
+        stars += (i < book.rating) ? '★' : '☆';
+      }
+
+      const text = 
+`_________________________________________
+   МОЯ НАХОДКА: "${book.title}"
+_________________________________________
+
+${authorLine}
+
+Оценка: ${stars} (${book.rating}/5)
+
+Цитата из описания:
+«${book.description.substring(0, 150)}${book.description.length > 150 ? '...' : ''}»
+
+• — • — • — • — • — • — • — • — • — • — •
+Читать подробнее и добавить в список:
+${window.location.origin}/?book=${id}`;
+
       doVKShare(text, `${window.location.origin}/?book=${id}`);
     }
     
     function shareBookList() {
       if (!books.length) { showNotification('Список книг пуст'); return; }
-      let text = `Моя книжная полка (${books.length} книг):\n\n`;
-      books.forEach((b,i) => {
-        const authorPart = b.author ? ` (${b.author})` : '';
-        text += `${i+1}. "${b.title}"${authorPart} — ★${b.rating}/5\n`;
+
+      let text = `МОЯ КНИЖНАЯ ПОЛКА\n`;
+      text += `Всего книг: ${books.length}\n`;
+      text += `• — • — • — • — • — • — • — • — • — • — •\n\n`;
+
+      books.forEach((b, i) => {
+        let miniStars = '';
+        for (let s = 0; s < b.rating; s++) miniStars += '★';
+        for (let s = b.rating; s < 5; s++) miniStars += '☆';
+        
+        const authorPart = b.author ? ` • ${b.author}` : '';
+        
+        text += `${i + 1}. «${b.title}»${authorPart}\n`;
+        text += `   Рейтинг: ${miniStars} (${b.rating}/5)\n\n`;
       });
-      text += `\nПосмотрите мой список: ${window.location.origin}`;
+
+      text += `• — • — • — • — • — • — • — • — • — • — •\n`;
+      text += `Открыть полную версию списка:\n${window.location.origin}`;
+
       doVKShare(text, window.location.origin);
     }
     
-    // Обновлена функция doVKShare на async/await
     async function doVKShare(msg, link) {
       const fullText = `${msg}\n\n${link}`;
       
@@ -404,7 +477,7 @@
         description: desc, 
         rating: currentRating, 
         coverUrl: cover,
-        user_id: currentUserId //ID
+        user_id: currentUserId
       };
       
       const url = editingBook ? `/api/books/${editingBook.id}` : '/api/books',
@@ -455,7 +528,9 @@
     
     function findBook() {
       const q = document.getElementById('search-query').value.trim();
-      currentFilter = q; showPanel('main'); renderBookList(q);
+      currentFilter = q; 
+      showPanel('main'); 
+      renderBookList(q);
     }
     
     function showNotification(text) {
