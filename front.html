@@ -259,7 +259,7 @@
       if (id === 'search') document.getElementById('search-query').value = '';
     }
 
-    // Новая функция для кнопки "Отмена" в поиске
+   
     function cancelSearch() {
       document.getElementById('search-query').value = '';
       showPanel('main');
@@ -396,6 +396,7 @@
 
       const text = 
 `_________________________________________
+
    МОЯ НАХОДКА: "${book.title}"
 _________________________________________
 
@@ -404,7 +405,7 @@ ${authorLine}
 Оценка: ${stars} (${book.rating}/5)
 
 Цитата из описания:
-«${book.description.substring(0, 150)}${book.description.length > 150 ? '...' : ''}»
+«${book.description.substring(0, 150)}${book.description.length > 100 ? '...' : ''}»
 
 • — • — • — • — • — • — • — • — • — • — •
 Читать подробнее и добавить в список:
@@ -432,7 +433,7 @@ ${window.location.origin}/?book=${id}`;
       });
 
       text += `• — • — • — • — • — • — • — • — • — • — •\n`;
-      text += `Открыть полную версию списка:\n${window.location.origin}`;
+     
 
       doVKShare(text, window.location.origin);
     }
@@ -448,17 +449,36 @@ ${window.location.origin}/?book=${id}`;
         fallbackShare(fullText);
       }
     }
+function fallbackShare(text) {
+  
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text)
+      .then(() => showNotification('Текст скопирован! Вставьте в VK'))
+      .catch(() => legacyCopy(text)); 
+  } else {
+    legacyCopy(text);
+  }
+}
 
-    function fallbackShare(text) {
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(text).then(() => showNotification('Текст скопирован! Вставьте в VK')).catch(() => showNotification('Не удалось скопировать'));
-      } else {
-        const ta = document.createElement('textarea');
-        ta.value = text; document.body.appendChild(ta); ta.select();
-        try { document.execCommand('copy'); showNotification('Текст скопирован!'); } catch { showNotification('Ошибка копирования'); }
-        document.body.removeChild(ta);
-      }
-    }
+function legacyCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+ 
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  ta.style.top = '0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  ta.setSelectionRange(0, ta.value.length); 
+  try { 
+    document.execCommand('copy'); 
+    showNotification('Текст скопирован!'); 
+  } catch { 
+    showNotification('Нажмите Ctrl+C для копирования'); 
+  }
+  document.body.removeChild(ta);
+}
     
     function saveBook() {
       const title = document.getElementById('book-title').value.trim();
