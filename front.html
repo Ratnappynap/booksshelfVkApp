@@ -591,10 +591,9 @@ ${authorLine}
 «${book.description.substring(0, 150)}${book.description.length > 100 ? '...' : ''}»
 
 • — • — • — • — • — • — • — • — • — • — •
-Читать подробнее и добавить в список:
-${window.location.origin}/?book=${id}`;
+Попробуйте наше приложение!`;
 
-      doVKShare(text, `${window.location.origin}/?book=${id}`);
+      doVKShare('https://vk.com/app54474048');
     }
 
     function shareBookList() {
@@ -616,9 +615,9 @@ ${window.location.origin}/?book=${id}`;
       });
 
       text += `• — • — • — • — • — • — • — • — • — • — •\n`;
+      text +='Попробуйте наше приложение!\n';
 
-
-      doVKShare(text, window.location.origin);
+      doVKShare('https://vk.com/app54474048');
     }
 
     async function doVKShare(msg, link) {
