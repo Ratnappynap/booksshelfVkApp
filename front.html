@@ -566,59 +566,75 @@
 
     function askDeleteBook(id) { bookToDelete = id; showPanel('confirm-delete'); }
 
-    function shareBook(id) {
-      const book = books.find(b => b.id === id);
-      if (!book) return;
+   function shareBook(id) {
+  const book = books.find(b => b.id === id); 
+  if (!book) return;
 
-      const authorLine = book.author ? `Автор: ${book.author}` : 'Автор не указан';
+  const authorLine = book.author ? `Автор: ${book.author}` : 'Автор не указан';
+  
+  let stars = '';
+  for (let i = 0; i < 5; i++) {
+    stars += (i < book.rating) ? '★' : '☆';
+  }
 
-      let stars = '';
-      for (let i = 0; i < 5; i++) {
-        stars += (i < book.rating) ? '★' : '☆';
-      }
+  const top = '╔═══════════════════════════════════════╗';
+  const mid = '╠═══════════════════════════════════════╣';
+  const bot = '╚═══════════════════════════════════════╝';
 
-      const text =
-        `_________________________________________
-
+  const text = 
+`${top}
    МОЯ НАХОДКА: "${book.title}"
-_________________________________________
+${mid}
 
 ${authorLine}
 
 Оценка: ${stars} (${book.rating}/5)
 
 Цитата из описания:
-«${book.description.substring(0, 150)}${book.description.length > 100 ? '...' : ''}»
+«${book.description.substring(0, 150)}${book.description.length > 150 ? '...' : ''}»
 
-• — • — • — • — • — • — • — • — • — • — •
-Попробуйте наше приложение!`;
+${mid}
+Попробуйте наше приложение:
+https://vk.com/app54474048
+${bot}`;
 
-      doVKShare(text,'https://vk.com/app54474048');
-    }
+  doVKShare(text, 'https://vk.com/app54474048');
+}
 
-    function shareBookList() {
-      if (!books.length) { showNotification('Список книг пуст'); return; }
+function shareBookList() {
+  if (!books.length) { showNotification('Список книг пуст'); return; }
 
-      let text = `МОЯ КНИЖНАЯ ПОЛКА\n`;
-      text += `Всего книг: ${books.length}\n`;
-      text += `• — • — • — • — • — • — • — • — • — • — •\n\n`;
+  const top = '╔═══════════════════════════════════════╗';
+  const mid = '╠═══════════════════════════════════════╣';
+  const bot = '╚═══════════════════════════════════════╝';
 
-      books.forEach((b, i) => {
-        let miniStars = '';
-        for (let s = 0; s < b.rating; s++) miniStars += '★';
-        for (let s = b.rating; s < 5; s++) miniStars += '☆';
+  let text = `${top}
+          МОЯ КНИЖНАЯ ПОЛКА
+${mid}
+Всего книг: ${books.length}
 
-        const authorPart = b.author ? ` • ${b.author}` : '';
+`;
 
-        text += `${i + 1}. «${b.title}»${authorPart}\n`;
-        text += `   Рейтинг: ${miniStars} (${b.rating}/5)\n\n`;
-      });
+  books.forEach((b, i) => {
+    let miniStars = '';
+    for (let s = 0; s < b.rating; s++) miniStars += '★';
+    for (let s = b.rating; s < 5; s++) miniStars += '☆';
+    
+    const authorPart = b.author ? ` • ${b.author}` : '';
+    
+    text += `${String(i + 1).padStart(2, ' ')}. «${b.title}»${authorPart}
+    Рейтинг: ${miniStars} (${b.rating}/5)
 
-      text += `• — • — • — • — • — • — • — • — • — • — •\n`;
-      text +='Попробуйте наше приложение!\n';
+`;
+  });
 
-      doVKShare(text,'https://vk.com/app54474048');
-    }
+  text += `${mid}
+Попробуйте наше приложение:
+https://vk.com/app54474048
+${bot}`;
+
+  doVKShare(text, 'https://vk.com/app54474048');
+}
 
     async function doVKShare(msg, link) {
       const fullText = `${msg}\n\n${link}`;
