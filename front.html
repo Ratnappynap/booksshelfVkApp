@@ -296,6 +296,45 @@
       background: #0066DD;
     }
 
+    #loading-screen {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      z-index: 2500;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.3s ease;
+    }
+
+    #loading-screen.active {
+      display: flex;
+    }
+
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid var(--card-bg);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 16px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      color: var(--primary-dark);
+      font-size: 16px;
+      font-weight: 500;
+    }
+
     @media (max-width: 360px) {
       .book-cover {
         max-width: 200px;
@@ -344,6 +383,12 @@
     <p>Войдите через ВКонтакте, чтобы создать свой личный список книг.</p>
     <button onclick="loginWithVK()">Войти через VK</button>
   </div>
+
+  <div id="loading-screen">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Загружаем книги...</div>
+  </div>
+ 
 
   <!-- Основной контент -->
   <div id="app-container" style="display:none;">
@@ -459,8 +504,13 @@
       return `<div class="stars">${s}</div>`;
     }
 
+ 
     function loadBooks() {
       if (!currentUserId) return;
+      
+    
+      document.getElementById('loading-screen').classList.add('active');
+      
       fetch('/api/books', {
         headers: { 'X-User-ID': currentUserId }
       })
@@ -469,8 +519,15 @@
           books = d;
           renderBookList();
         })
-        .catch(err => showNotification('Ошибка загрузки'));
+        .catch(err => showNotification('Ошибка загрузки'))
+        .finally(() => {
+      
+          setTimeout(() => {
+            document.getElementById('loading-screen').classList.remove('active');
+          }, 300);
+        });
     }
+   
 
     function renderBookList(filter = '') {
       const list = document.getElementById('book-list'),
